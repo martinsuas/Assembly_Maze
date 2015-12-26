@@ -1,0 +1,83 @@
+Load map
+========
+
+Module:  maze.obj
+ Text segment:  1952 bytes, load point 0x00400000
+ Data segment:  19624 bytes, load point 0x10000000
+ Symbols:
+            Name Section Mode    Value
+           trail   Data   R   0x10000091
+        no_start   Text   R   0x00400158
+            LEFT          A   0x00000003
+       pose_text   Data   R   0x10000074
+         scratch   Data   R   0x100000b8
+        bug_text   Data   R   0x10000056
+         nc_left   Text   R   0x004005dc
+         rchar_l   Text   R   0x004000c4
+              UP          A   0x00000000
+           RIGHT          A   0x00000001
+     check_front   Text   R   0x00400744
+     mem_to_coor   Text   R   0x00400214
+        nc_right   Text   R   0x004005b4
+       read_maze   Text   R   0x0040004c
+       maze_text   Data   R   0x10000000
+         bt_text   Data   R   0x1000007d
+            turn   Text   R   0x00400440
+          height   Data   R   0x1000009c
+           width   Data   R   0x100000a0
+       done_text   Data   R   0x1000004f
+          P_CHAR          A   0x0000000b
+      crumb_down   Data   R   0x10000094
+            pose   Data   R   0x10004c80
+         counter   Data   R   0x100000b4
+          no_end   Text   R   0x004001a8
+         end_loc   Data   R   0x10004ca0
+         newline   Data   R   0x10000098
+          not_up   Text   R   0x00400750
+      crumb_left   Data   R   0x10000095
+     crumb_right   Data   R   0x10000093
+        crumb_up   Data   R   0x10000092
+             end   Data   R   0x10000097
+       not_right   Text   R   0x0040075c
+             bug   Text   R   0x00400790
+     coor_to_mem   Text   R   0x00400234
+            wall   Data   R   0x1000008f
+           R_INT          A   0x00000005
+            size   Data   R   0x100000a4
+      coordinate   Data   R   0x10004c90
+        P_STRING          A   0x00000004
+           P_INT          A   0x00000001
+       start_loc   Data   R   0x10004c98
+            main   Text   RG  0x00400000
+           space   Data   R   0x10000090
+       backtrack   Text   R   0x0040049c
+          step_1   Text   R   0x00400260
+          step_2   Text   R   0x00400288
+          step_3   Text   R   0x00400300
+          step_4   Text   R   0x00400540
+          step_5   Text   R   0x00400630
+          step_6   Text   R   0x004006f4
+           nc_up   Text   R   0x004005a0
+   solution_text   Data   R   0x10000042
+          next_s   Data   R   0x100000ac
+          next_t   Data   R   0x100000b0
+        R_STRING          A   0x00000008
+          spin_n   Data   R   0x10004c8c
+        not_down   Text   R   0x00400768
+           start   Data   R   0x10000096
+            next   Data   R   0x100000a8
+            DOWN          A   0x00000002
+        not_left   Text   R   0x00400774
+         nc_down   Text   R   0x004005c8
+        rchar_1d   Text   R   0x004001e8
+      solve_maze   Text   R   0x00400260
+          R_CHAR          A   0x0000000c
+         tracker   Data   R   0x10003448
+          m_maze   Data   R   0x10001a80
+
+Module:  r2k_startup.obj
+ Text segment:  36 bytes, load point 0x004007a0
+ Symbols:
+            Name Section Mode    Value
+       SYS_EXIT2          A   0x00000011
+  __r2k__entry__   Text   RG  0x004007a4

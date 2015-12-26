@@ -1,0 +1,1115 @@
+   1 0000               #
+   2 0000               # FILE: $FILE$
+   3 0000               # AUTHOR: Martin Suarez
+   4 0000               # DESCRIPTION: 
+   5 0000               #	This program reads a maze from a file and recreates said maze. 
+   6 0000               #	It solves and prints the solution after printing the maze.
+   7 0000               # ARGUMENTS:
+   8 0000               #	None
+   9 0000               # INPUT:
+  10 0000               #
+  11 0000               # OUTPUT:
+  12 0000               #
+  13 0000               #
+  14 0000               
+  15 0000               # CONSTANTS
+  16 0000               #
+  17 0000               
+  18 0000               P_INT =		1
+  19 0000               P_STRING = 	4
+  20 0000               R_INT = 	5
+  21 0000               R_STRING =	8
+  22 0000               P_CHAR =	11
+  23 0000               R_CHAR =	12
+  24 0000               
+  25 0000               UP =	 0
+  26 0000               RIGHT =  1
+  27 0000               DOWN =	 2
+  28 0000               LEFT =	 3
+  29 0000               
+  30 0000               
+  31 0000               # DATA AREAS
+  32 0000               #
+  33 0000               
+  34 0000               	.data
+  35 0000               maze_text:
+  36 0000 3D3D3D20		.ascii "=== \n"
+          0A      
+  37 0005 3D3D3D20		.ascii "=== Maze Solver\n"
+          4D617A65
+          20536F6C
+          7665720A
+  38 0015 3D3D3D20		.ascii "=== by\n"
+          62790A  
+  39 001c 3D3D3D20		.ascii "=== Martin Suarez\n"
+          4D617274
+          696E2053
+          75617265
+          7A0A    
+  40 002e 3D3D3D20		.ascii "=== \n\n"
+          0A0A    
+  41 0034 496E7075		.asciiz "Input maze:\n\n"
+          74206D61
+          7A653A0A
+          0A00    
+  42 0042               solution_text:
+  43 0042 0A536F6C		.asciiz "\nSolution:\n\n"
+          7574696F
+          6E3A0A0A
+          00      
+  44 004f               	
+  45 004f               done_text:
+  46 004f 446F6E65		.asciiz	"Done!\n"
+          210A00  
+  47 0056               bug_text:
+  48 0056 0A427567		.asciiz "\nBug Found!\nEverybody run!!!\n"
+          20466F75
+          6E64210A
+          45766572
+          79626F64
+          79207275
+  49 0074               pose_text:
+  50 0074 0A506F73		.asciiz "\nPosse: "
+          73653A20
+          00      
+  51 007d               bt_text:
+  52 007d 0A426163		.asciiz "\nBacktrack time!\n"
+          6B747261
+          636B2074
+          696D6521
+          0A00    
+  53 008f               		
+  54 008f               wall:
+  55 008f 23      		.ascii "#"
+  56 0090               space:
+  57 0090 20      		.ascii " "
+  58 0091               trail:
+  59 0091 2E      		.ascii "."
+  60 0092               	
+  61 0092               crumb_up:
+  62 0092 02      		.byte DOWN
+  63 0093               crumb_right:
+  64 0093 03      		.byte LEFT
+  65 0094               crumb_down:
+  66 0094 00      		.byte UP
+  67 0095               crumb_left:
+  68 0095 01      		.byte RIGHT
+  69 0096               	
+  70 0096               start:
+  71 0096 53      		.ascii "S"
+  72 0097               end:
+  73 0097 45      		.ascii "E"
+  74 0098               newline:
+  75 0098 0A00    		.asciiz "\n"
+  76 009a               
+  77 009a               height:
+  78 009a 0000    		.word	0	# Stores maze height (80 max) (same with scratch)
+     009c 00000000
+  79 00a0               width:
+  80 00a0 00000000		.word 	0	# Stores maze width (80 max) (same with scratch)
+  81 00a4               size:
+  82 00a4 00000000		.word	0	# Stores size of maze (width * height) (same with scratch)
+  83 00a8               next:
+  84 00a8 00001A80		.word	m_maze	# Pointer that indicates where we are located in the maze 
+  85 00ac               	
+  86 00ac               next_s:
+  87 00ac 000000B8		.word	scratch	# Pointer that indicates where we are locaed in the scratch maze
+  88 00b0               
+  89 00b0               next_t:
+  90 00b0 00003448		.word	tracker	# Pointer that indicates where in tracker we are located
+  91 00b4               	
+  92 00b4               counter:
+  93 00b4 00000000		.word	0	# Counter used for loops
+  94 00b8               
+  95 00b8               scratch:
+  96 00b8 00000000		.space	6600	# Copy of m_maze
+          00000000
+          00000000
+          00000000
+          00000000
+          00000000
+  97 1a80               
+  98 1a80               m_maze:
+  99 1a80 00000000		.space	6600
+          00000000
+          00000000
+          00000000
+          00000000
+          00000000
+ 100 3448               
+ 101 3448               tracker:
+ 102 3448 00000000		.space	6200	# Place to store multiple byte integers that keep track of how many
+          00000000
+          00000000
+          00000000
+          00000000
+          00000000
+ 103 4c80               			# times it has been turned in an specific space
+ 104 4c80               	
+ 105 4c80               pose:
+ 106 4c80 FFFFFFFF		.word 	-1	# x = 0
+ 107 4c84 FFFFFFFF		.word	-1	# y = 0
+ 108 4c88 00      		.byte	UP	# Default: facing up
+ 109 4c89               	
+ 110 4c89               spin_n:
+ 111 4c89 000000  		.word	0
+     4c8c 00000000
+ 112 4c90               coordinate:
+ 113 4c90 FFFFFFFF		.word	-1	# X
+ 114 4c94 FFFFFFFF		.word 	-1	# y
+ 115 4c98               	
+ 116 4c98               start_loc:
+ 117 4c98 FFFFFFFF		.word	-1	# x
+ 118 4c9c FFFFFFFF		.word	-1	# y
+ 119 4ca0               
+ 120 4ca0               end_loc:
+ 121 4ca0 FFFFFFFF		.word	-1 	# x
+ 122 4ca4 FFFFFFFF		.word	-1	# y
+ 123 4ca8               	
+ 124 4ca8               	.align 2
+ 125 4ca8               	
+ 126 4ca8               # CODE AREAS
+ 127 4ca8               #
+ 128 0000               	.text
+ 129 0000               	.align 2
+ 130 0000               	.globl main
+ 131 0000               	
+ 132 0000               #
+ 133 0000               # Name:		main
+ 134 0000               # Arguments:	none
+ 135 0000               # Returns:	none
+ 136 0000               # Destroys:	
+ 137 0000               #
+ 138 0000               
+ 139 0000               main:
+ 140 0000               	# Print frame
+ 141 0000               	
+ 142 0000 34020004		li	$v0, P_STRING    # Call print string
+ 143 0004 3C040000		la	$a0, maze_text
+     0008 34840000
+ 144 000c 0000000C		syscall
+ 145 0010               	
+ 146 0010               	### Call maze printer function
+ 147 0010 23BDFFFC		addi	$sp, $sp, -4
+ 148 0014 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 149 0018                	
+ 150 0018 0C000013		jal	read_maze
+ 151 001c               	
+ 152 001c 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 153 0020 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 154 0024               	###
+ 155 0024               	
+ 156 0024               	### TEST
+ 157 0024               #	la	$a0, newline
+ 158 0024               #	li	$v0, P_STRING
+ 159 0024               #	syscall
+ 160 0024               #	la	$a0, scratch
+ 161 0024               #	li	$v0, P_INT
+ 162 0024               #	syscall
+ 163 0024               #	li	$a0, 1		# CHANGE to test coor x
+ 164 0024               #	li	$a1, 2		# CHANGE to test coor y
+ 165 0024               #	li	$a3, 2		# CHANGE to test direction
+ 166 0024               #	addi	$sp, $sp, -4
+ 167 0024               #	sw	$ra, 0($sp)	# save current ra
+ 168 0024               # 	la	$a2, scratch
+ 169 0024               #	jal	check_front
+ 170 0024               #	lw	$ra, 0($sp)	# load old ra
+ 171 0024               #	addi	$sp, $sp, 4	# return stack pointer
+ 172 0024               #	move	$a0, $v0
+ 173 0024               #	li	$v0, P_CHAR
+ 174 0024               #	syscall
+ 175 0024               #	la	$a0, newline
+ 176 0024               #	li	$v0, P_STRING
+ 177 0024               #	syscall
+ 178 0024               #	la	$a0, scratch
+ 179 0024               #	addi	$a0, $a0, 28	# CHANGE to test different locations
+ 180 0024               #	addi	$sp, $sp, -4
+ 181 0024               #	sw	$ra, 0($sp)	# save current ra
+ 182 0024               #	la	$a2, scratch
+ 183 0024               #	jal	mem_to_coor
+ 184 0024               #	lw	$ra, 0($sp)	# load old ra
+ 185 0024               #	addi	$sp, $sp, 4	# return stack pointer
+ 186 0024               #	move	$a0, $v0	# move x coordinate
+ 187 0024               #	move	$s0, $v1	# save y for later printing
+ 188 0024               #	li	$v0, P_INT
+ 189 0024               #	syscall
+ 190 0024               #	move	$a0, $s0	# now move y
+ 191 0024               #	li	$v0, P_INT	
+ 192 0024               #	syscall
+ 193 0024               #	la	$a0, newline
+ 194 0024               #	li	$v0, P_STRING
+ 195 0024               #	syscall	
+ 196 0024               	### TEST
+ 197 0024               	
+ 198 0024 34020004		li	$v0, P_STRING    # Call print string
+ 199 0028 3C040000		la 	$a0, solution_text
+     002c 34840000
+ 200 0030 0000000C		syscall
+ 201 0034               	
+ 202 0034               	### Call maze solver function
+ 203 0034 23BDFFFC		addi	$sp, $sp, -4
+ 204 0038 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 205 003c                	
+ 206 003c 0C000098	 	jal	solve_maze
+ 207 0040                	
+ 208 0040 8FBF0000	 	lw	$ra, 0($sp)	# load old ra
+ 209 0044 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 210 0048               	###
+ 211 0048               
+ 212 0048 03E00008		jr	$ra
+ 213 004c               
+ 214 004c               
+ 215 004c               #
+ 216 004c               # Name:		read_maze
+ 217 004c               # Arguments:	none
+ 218 004c               # Returns:	none
+ 219 004c               # Destroys:	
+ 220 004c               #
+ 221 004c               read_maze:
+ 222 004c               	# Read height
+ 223 004c 34020005		li	$v0, R_INT
+ 224 0050 3C040000		la	$a0, height
+     0054 34840000
+ 225 0058 0000000C		syscall
+ 226 005c AC820000		sw	$v0, 0($a0) 	# v0 = height loc, so store result
+ 227 0060               
+ 228 0060               	# Read width
+ 229 0060 34020005		li	$v0, R_INT
+ 230 0064 3C040000		la	$a0, width
+     0068 34840000
+ 231 006c 0000000C		syscall
+ 232 0070 20420001		addi	$v0, $v0, 1	# Add one to width to include \n
+ 233 0074 AC820000		sw	$v0, 0($a0)	# v0 = width_loc, so store width res
+ 234 0078               
+ 235 0078               	# Calculate space
+ 236 0078 3C080000		la	$t0, height
+     007c 35080000
+ 237 0080 3C090000		la	$t1, width
+     0084 35290000
+ 238 0088 8D080000		lw	$t0, 0($t0)
+ 239 008c 8D290000		lw	$t1, 0($t1)
+ 240 0090 01090018		mul	$t3, $t0, $t1 	# t3 = width * height
+     0094 00005812
+ 241 0098 3C080000		la	$t0, size
+     009c 35080000
+ 242 00a0 AD0B0000		sw	$t3, 0($t0)	# Store t3 in size
+ 243 00a4               	
+ 244 00a4               	
+ 245 00a4               	
+ 246 00a4               	# Set counter to zero
+ 247 00a4 3C080000		la	$t0, counter
+     00a8 35080000
+ 248 00ac AD000000		sw	$zero, 0($t0)
+ 249 00b0               	
+ 250 00b0               	# Set move address equal to maze's
+ 251 00b0 3C080000		la	$t0, m_maze
+     00b4 35080000
+ 252 00b8 3C090000		la	$t1, next
+     00bc 35290000
+ 253 00c0 AD280000		sw	$t0, 0($t1)
+ 254 00c4               	
+ 255 00c4               	
+ 256 00c4               # Loop
+ 257 00c4               rchar_l: 
+ 258 00c4               	
+ 259 00c4 3C0A0000		la	$t2, counter	# load counter
+     00c8 354A0000
+ 260 00cc 8D4A0000		lw	$t2, 0($t2)
+ 261 00d0 3C0B0000		la	$t3, size	# load size
+     00d4 356B0000
+ 262 00d8 8D6B0000		lw	$t3, 0($t3)
+ 263 00dc               	
+ 264 00dc 3402000C		li	$v0, R_CHAR	# v0 = chara
+ 265 00e0 0000000C		syscall			# Store v0 in current
+ 266 00e4               	
+ 267 00e4 114B0040		beq	$t2, $t3, rchar_1d
+ 268 00e8 3C080000		la	$t0, next	# t0 = address of next, 
+     00ec 35080000
+ 269 00f0 8D080000		lw	$t0, 0($t0)	# begins as a pointer to maze
+ 270 00f4 A1020000		sb	$v0, 0($t0)	# store at maze address
+ 271 00f8               	
+ 272 00f8 3C080000		la	$t0, next_s	# t0 = address of next, 
+     00fc 35080000
+ 273 0100 8D080000		lw	$t0, 0($t0)	# begins as a pointer to scratch
+ 274 0104 A1020000		sb	$v0, 0($t0)	# store at scratch address
+ 275 0108               	
+ 276 0108               	### CHECK FOR START OR END
+ 277 0108 3C110000		la	$s1, start
+     010c 36310000
+ 278 0110 82310000	 	lb	$s1, 0($s1)	# s1 = 'S'
+ 279 0114 3C100000	 	la	$s0, next_s
+     0118 36100000
+ 280 011c 8E100000	 	lw	$s0, 0($s0)	# s0 = current address
+ 281 0120 82120000	 	lb	$s2, 0($s0)	# S2 = current chracter
+ 282 0124                	
+ 283 0124 1632000C	 	bne	$s1, $s2, no_start	# is s1 not equal to 'S'? 
+ 284 0128               ## 	# Do if start is found
+ 285 0128 3C060000		la	$a2, scratch
+     012c 34C60000
+ 286 0130 23BDFFFC	 	addi	$sp, $sp, -4
+ 287 0134 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 288 0138 02002021	 	move	$a0, $s0
+ 289 013c 0C000085		jal	mem_to_coor	# v0 = x, v1 = y
+ 290 0140 3C080000		la	$t0, start_loc
+     0144 35080000
+ 291 0148 AD020000		sw	$v0, 0($t0)	# x = v0
+ 292 014c AD030004		sw	$v1, 4($t0)	# y = v1
+ 293 0150 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 294 0154 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 295 0158               no_start:# end if start is found or continuation if not
+ 296 0158                	
+ 297 0158 3C100000	 	la	$s0, end
+     015c 36100000
+ 298 0160 82100000	 	lb	$s0, 0($s0)	# s0 = 'E'
+ 299 0164 3C110000	 	la	$s1, next_s
+     0168 36310000
+ 300 016c 8E310000	 	lw	$s1, 0($s1)	# s1 = current address
+ 301 0170 82320000	 	lb	$s2, 0($s1)	# s2 = current character
+ 302 0174 1650000C		bne	$s2, $s0, no_end	#is s0 equal to 'E'?
+ 303 0178                	
+ 304 0178               ## 	# Do if end is found
+ 305 0178 3C060000		la	$a2, scratch
+     017c 34C60000
+ 306 0180 23BDFFFC	 	addi	$sp, $sp, -4
+ 307 0184 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 308 0188 02202021	 	move	$a0, $s1
+ 309 018c 0C000085		jal	mem_to_coor	# v0 = x, v1 = y
+ 310 0190 3C080000		la	$t0, end_loc
+     0194 35080000
+ 311 0198 AD020000		sw	$v0, 0($t0)	# x = v0
+ 312 019c AD030004		sw	$v1, 4($t0)	# y = v1
+ 313 01a0 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 314 01a4 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 315 01a8               no_end:# end if end is found or continuation if not
+ 316 01a8               	
+ 317 01a8 3C080000		la	$t0, next	# load next address
+     01ac 35080000
+ 318 01b0 8D090000		lw	$t1, 0($t0)	# store current value in t1
+ 319 01b4 21290001		addi	$t1, $t1, 1	# Increase current by 1
+ 320 01b8 AD090000		sw	$t1, 0($t0)	# Store increased address in 'next' address
+ 321 01bc               	
+ 322 01bc 3C080000		la	$t0, next_s	# load next address
+     01c0 35080000
+ 323 01c4 8D090000		lw	$t1, 0($t0)	# store current value in t1
+ 324 01c8 21290001		addi	$t1, $t1, 1	# Increase current by 1
+ 325 01cc AD090000		sw	$t1, 0($t0)	# Store increased address in 'next' address
+ 326 01d0               	
+ 327 01d0 3C080000		la	$t0, counter	# load counter
+     01d4 35080000
+ 328 01d8 8D090000		lw	$t1, 0($t0)	# store current count in t1
+ 329 01dc 21290001		addi	$t1, $t1, 1	# Increase current counter by 1
+ 330 01e0 AD090000		sw	$t1, 0($t0)	# Store increased counter at 'counter'
+ 331 01e4               
+ 332 01e4 08000031		j 	rchar_l
+ 333 01e8               	
+ 334 01e8               rchar_1d:
+ 335 01e8               # Loop done
+ 336 01e8 3C080000		la	$t0, next
+     01ec 35080000
+ 337 01f0 A1000000		sb	$zero, 0($t0)	# Store null character at the end
+ 338 01f4 3C080000		la	$t0, next_s
+     01f8 35080000
+ 339 01fc A1000000		sb	$zero, 0($t0)	# Store null character at the end of scratch
+ 340 0200               	
+ 341 0200               	### Print maze
+ 342 0200 34020004		li	$v0, P_STRING
+ 343 0204 3C040000		la	$a0, m_maze
+     0208 34840000
+ 344 020c 0000000C		syscall
+ 345 0210               	
+ 346 0210               ########### TEST: print start and end coordinates
+ 347 0210               #	la	$t0, start_loc
+ 348 0210               #	li	$v0, P_INT
+ 349 0210               #	lw	$a0, 0($t0)
+ 350 0210               #	syscall
+ 351 0210               #	la	$t0, start_loc
+ 352 0210               #	li	$v0, P_INT
+ 353 0210               #	lw	$a0, 4($t0)
+ 354 0210               #	syscall
+ 355 0210               #	
+ 356 0210               #	la	$t0, end_loc
+ 357 0210               #	li	$v0, P_INT
+ 358 0210               #	lw	$a0, 0($t0)
+ 359 0210               #	syscall
+ 360 0210               #	la	$t0, end_loc
+ 361 0210               #	li	$v0, P_INT
+ 362 0210               #	lw	$a0, 4($t0)
+ 363 0210               #	syscall
+ 364 0210               	####### TEST 	
+ 365 0210               
+ 366 0210 03E00008		jr	$ra
+ 367 0214               
+ 368 0214               	
+ 369 0214               
+ 370 0214               #
+ 371 0214               # Name:		mem_to_coor
+ 372 0214               # Arguments:	a0 = location using next or next_s, a2 = address of either maze or scratch
+ 373 0214               # Returns:	v0 = x, v1 = y
+ 374 0214               # Destroys:	
+ 375 0214               #
+ 376 0214               mem_to_coor:
+ 377 0214 00864822		sub	$t1, $a0, $a2 	# t1 = maze_loc - maze
+ 378 0218 3C0A0000		la	$t2, width
+     021c 354A0000
+ 379 0220 8D4A0000		lw	$t2, 0($t2)	# t2 = width
+ 380 0224               	
+ 381 0224 012A001A		div	$t1, $t2
+ 382 0228               	# location % width = x  = $t1
+ 383 0228 00001010	 	mfhi	$v0
+ 384 022c               	# location / width = y = $t2
+ 385 022c 00001812		mflo	$v1
+ 386 0230 03E00008		jr	$ra
+ 387 0234               	
+ 388 0234               #
+ 389 0234               # Name:		coor_to_mem
+ 390 0234               # Arguments:	a0 = x, a1 = y, a2 = address of either m_maze or scratch
+ 391 0234               # Returns:	v0 = address of location
+ 392 0234               # Destroys:	
+ 393 0234               #
+ 394 0234               coor_to_mem:
+ 395 0234 3C080000		la	$t0, height
+     0238 35080000
+ 396 023c 3C090000		la	$t1, width
+     0240 35290000
+ 397 0244 8D080000		lw	$t0, 0($t0) # $t0 = height
+ 398 0248 8D290000		lw	$t1, 0($t1) # $t1 = width
+ 399 024c 01250018		mul	$t2, $t1, $a1 	# t2 =  width * y
+     0250 00005012
+ 400 0254 01441020		add	$v0, $t2, $a0	# v0 = t2 + x
+ 401 0258 00461020		add	$v0, $v0, $a2
+ 402 025c 03E00008		jr	$ra
+ 403 0260               	
+ 404 0260               	
+ 405 0260               #
+ 406 0260               # Name:		solve_maze
+ 407 0260               # Arguments:	none
+ 408 0260               # Returns:	none
+ 409 0260               # Destroys:	
+ 410 0260               #
+ 411 0260               # s7 - designated turn tracker
+ 412 0260               solve_maze:
+ 413 0260               step_1: 
+ 414 0260               	# Step 1: Set pose location
+ 415 0260               	####### TEST ###
+ 416 0260               	#li	$v0, P_INT
+ 417 0260               	#li	$a0, 1
+ 418 0260               	#syscall
+ 419 0260               	######## TESTE ###
+ 420 0260               
+ 421 0260 3C080000		la	$t0, start_loc
+     0264 35080000
+ 422 0268 8D100000		lw	$s0, 0($t0)	#  s0 = Load x coordinate
+ 423 026c 8D110004		lw	$s1, 4($t0)	#  s1 = Load y coordinate
+ 424 0270 3C080000		la	$t0, pose
+     0274 35080000
+ 425 0278 AD100000		sw	$s0, 0($t0)	#  Store x coordinate in pose
+ 426 027c AD110004		sw	$s1, 4($t0)	#  Store y coordinate in pose
+ 427 0280 34130000		li	$s3, UP		#  Default facing
+ 428 0284 AD130008		sw	$s3, 8($t0)
+ 429 0288               step_2: # done!
+ 430 0288               	# Step 2: Check the contents of the maze at current location
+ 431 0288               	####### TEST ###
+ 432 0288               	#li	$v0, P_INT
+ 433 0288               	#li	$a0, 2
+ 434 0288               	#syscall
+ 435 0288               	######## TESTE ###
+ 436 0288               
+ 437 0288 3C080000		la	$t0, pose
+     028c 35080000
+ 438 0290 8D040000		lw	$a0, 0($t0)	# Load x
+ 439 0294 8D050004		lw	$a1, 4($t0)	# Load y
+ 440 0298 3C060000		la	$a2, m_maze
+     029c 34C60000
+ 441 02a0 23BDFFFC		addi	$sp, $sp, -4
+ 442 02a4 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 443 02a8 0C00008D	 	jal	coor_to_mem	# Get address
+ 444 02ac 8FBF0000	 	lw	$ra, 0($sp)	# load old ra
+ 445 02b0 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 446 02b4               
+ 447 02b4 80500000		lb	$s0, 0($v0)	# Get symbol from current location
+ 448 02b8               		
+ 449 02b8               	####### TEST ###
+ 450 02b8               	#li	$v0, P_CHAR
+ 451 02b8               	#move	$a0, $s0
+ 452 02b8               	#syscall
+ 453 02b8               	######## TESTE ###
+ 454 02b8               
+ 455 02b8 3C110000		la	$s1, end
+     02bc 36310000
+ 456 02c0 82310000		lb	$s1, 0($s1)	# Get 'E'
+ 457 02c4 123000DA		beq	$s1, $s0, step_5	
+ 458 02c8 3C110000		la	$s1, space	
+     02cc 36310000
+ 459 02d0               
+ 460 02d0               	# Store 4 in tracker, represents how many turns we can make in this spot
+ 461 02d0 34080004		li	$t0, 4
+ 462 02d4 3C090000		la	$t1, next_t
+     02d8 35290000
+ 463 02dc 8D290000		lw	$t1, 0($t1)	# load current turn tracker address
+ 464 02e0 A1280000		sb	$t0, 0($t1)	# store 4 in there
+ 465 02e4               	
+ 466 02e4 82310000		lb	$s1, 0($s1)	# Get ' '
+ 467 02e8 12300005		beq	$s1, $s0, step_3
+ 468 02ec 3C110000		la	$s1, start	
+     02f0 36310000
+ 469 02f4 82310000		lb	$s1, 0($s1)	# Get 'S'
+ 470 02f8 12300001		beq	$s1, $s0, step_3
+ 471 02fc               	
+ 472 02fc 080001E4		j	bug
+ 473 0300               step_3:
+ 474 0300               	# Step 3 - Look for next character you are facing in both mazes.
+ 475 0300               	# Step 3 A
+ 476 0300               	####### TEST ###
+ 477 0300               	#li	$v0, P_INT
+ 478 0300               	#li	$a0, 3
+ 479 0300               	#syscall
+ 480 0300               	######## TESTE ###
+ 481 0300               
+ 482 0300               	# Set end as blank temporarily
+ 483 0300 3C080000		la	$t0, end_loc
+     0304 35080000
+ 484 0308 8D040000		lw	$a0, 0($t0)	#x
+ 485 030c 8D050004		lw	$a1, 4($t0)	#y
+ 486 0310 3C060000		la	$a2, m_maze
+     0314 34C60000
+ 487 0318 23BDFFFC		addi	$sp, $sp, -4
+ 488 031c AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 489 0320 0C00008D		jal	coor_to_mem	# v0 = end_loc memory
+ 490 0324 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 491 0328 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 492 032c 3C080000		la	$t0, space	
+     0330 35080000
+ 493 0334 81080000		lb	$t0, 0($t0)	# t0 = ' '
+ 494 0338 A0480000		sb	$t0, 0($v0)	
+ 495 033c               
+ 496 033c               
+ 497 033c 3C080000		la	$t0, pose
+     0340 35080000
+ 498 0344 8D040000		lw	$a0, 0($t0)	# Load x
+ 499 0348 8D050004		lw	$a1, 4($t0)	# Load y
+ 500 034c 81070008		lb	$a3, 8($t0)	# Load direction
+ 501 0350 3C060000		la	$a2, m_maze	# Checking original maze
+     0354 34C60000
+ 502 0358               
+ 503 0358 23BDFFFC		addi	$sp, $sp, -4
+ 504 035c AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 505 0360 0C0001D1		jal	check_front	# v0 = front symbol
+ 506 0364 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 507 0368 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 508 036c               	
+ 509 036c 3C080000		la	$t0, space
+     0370 35080000
+ 510 0374 81080000		lb	$t0, 0($t0)	# load space
+ 511 0378 14480031		bne	$v0, $t0, turn	# if loc on m_maze not empty, turn
+ 512 037c               
+ 513 037c               	# is space, set end back to 'E'
+ 514 037c 3C080000		la	$t0, end_loc
+     0380 35080000
+ 515 0384 8D040000		lw	$a0, 0($t0)	#x
+ 516 0388 8D050004		lw	$a1, 4($t0)	#y
+ 517 038c 3C060000		la	$a2, m_maze
+     0390 34C60000
+ 518 0394 23BDFFFC		addi	$sp, $sp, -4
+ 519 0398 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 520 039c 0C00008D		jal	coor_to_mem	# v0 = end_loc memory
+ 521 03a0 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 522 03a4 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 523 03a8 3C080000		la	$t0, end	
+     03ac 35080000
+ 524 03b0 81080000		lb	$t0, 0($t0)	# t0 = 'E'
+ 525 03b4 A0480000		sb	$t0, 0($v0)	
+ 526 03b8               
+ 527 03b8 3C080000		la	$t0, pose
+     03bc 35080000
+ 528 03c0 8D040000		lw	$a0, 0($t0)	# Load x
+ 529 03c4 8D050004		lw	$a1, 4($t0)	# Load y
+ 530 03c8 81070008		lb	$a3, 8($t0)	# Load direction
+ 531 03cc 3C060000		la	$a2, scratch	# Checking scratch maze
+     03d0 34C60000
+ 532 03d4 23BDFFFC		addi	$sp, $sp, -4
+ 533 03d8 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 534 03dc 0C0001D1		jal	check_front	# v0 = front symbol
+ 535 03e0 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 536 03e4 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 537 03e8               	
+ 538 03e8               	
+ 539 03e8 3C080000		la	$t0, crumb_up
+     03ec 35080000
+ 540 03f0 81080000		lb	$t0, 0($t0)	# load crumb
+ 541 03f4 10480012		beq	$v0, $t0, turn
+ 542 03f8               	
+ 543 03f8 3C080000		la	$t0, crumb_right
+     03fc 35080000
+ 544 0400 81080000		lb	$t0, 0($t0)	# load crumb
+ 545 0404 1048000E		beq	$v0, $t0, turn
+ 546 0408               	
+ 547 0408 3C080000		la	$t0, crumb_down
+     040c 35080000
+ 548 0410 81080000		lb	$t0, 0($t0)	# load crumb
+ 549 0414 1048000A		beq	$v0, $t0, turn
+ 550 0418               	
+ 551 0418 3C080000		la	$t0, crumb_left
+     041c 35080000
+ 552 0420 81080000		lb	$t0, 0($t0)	# load crumb
+ 553 0424 10480006		beq	$v0, $t0, turn
+ 554 0428               	
+ 555 0428               	##### POSSE #####
+ 556 0428               #	li	$v0, P_STRING
+ 557 0428               #	la	$a0, pose_text
+ 558 0428               #	syscall
+ 559 0428               #	li	$v0, P_INT
+ 560 0428               #	la	$s5, pose
+ 561 0428               #	lw	$a0, 0($s5)
+ 562 0428               #	syscall
+ 563 0428               #	li	$v0, P_INT
+ 564 0428               #	la	$s5, pose
+ 565 0428               #	lw	$a0, 4($s5)
+ 566 0428               #	syscall
+ 567 0428               #	li	$v0, P_INT
+ 568 0428               #	la	$s5, pose
+ 569 0428               #	lb	$a0, 8($s5)
+ 570 0428               #	syscall
+ 571 0428               #	li	$v0, P_STRING
+ 572 0428               #	la	$a0, newline
+ 573 0428               #	syscall
+ 574 0428               	##### POSSE #####
+ 575 0428               
+ 576 0428               	
+ 577 0428               	# Passed all tests, may proceed to step 4. Good luck warrior.
+ 578 0428               	
+ 579 0428               	# Increase next_t to next location
+ 580 0428 3C080000		la	$t0, next_t
+     042c 35080000
+ 581 0430 8D090000		lw	$t1, 0($t0)	# load current turn tracker address
+ 582 0434 21290001		addi	$t1, $t1, 1	# Add one to tracker address
+ 583 0438 AD090000		sw	$t1, 0($t0)	# Store it back
+ 584 043c               
+ 585 043c 08000150		j	step_4	
+ 586 0440               
+ 587 0440               	# Step 3 B	
+ 588 0440               turn:
+ 589 0440 3C080000		la	$t0, next_t
+     0444 35080000
+ 590 0448 8D080000		lw	$t0, 0($t0)	# Load turn tracker address
+ 591 044c 81080000		lb	$t0, 0($t0)	# Load turn tracker
+ 592 0450 34090000		li	$t1, 0
+ 593 0454 11090011		beq	$t0, $t1, backtrack	# 4 turns done, backtrack!
+ 594 0458 21080001		addi	$t0, $t0, 1	# Add 1 to change direction
+ 595 045c 34090004		li	$t1, 4		# Load 4 to mod result by 4
+ 596 0460 0109001A		div	$t0, $t1
+ 597 0464 00004010		mfhi	$t0		# t0 = (D + 1) % 4
+ 598 0468               	# Store new direction
+ 599 0468 3C090000		la	$t1, pose
+     046c 35290000
+ 600 0470 A1280008		sb	$t0, 8($t1)
+ 601 0474               	# Decrease turn tracker
+ 602 0474 3C080000		la	$t0, next_t
+     0478 35080000
+ 603 047c 8D080000		lw	$t0, 0($t0)	# load current turn tracker address
+ 604 0480 81090000		lb	$t1, 0($t0)	# t0 = turn tracker
+ 605 0484 2129FFFF		addi	$t1, $t1, -1	# Subtract one from tracker
+ 606 0488 A1090000		sb	$t1, 0($t0)	# Store it back
+ 607 048c               	### TEST
+ 608 048c 34020001		li	$v0, P_INT
+ 609 0490 01002021		move	$a0, $t0
+ 610 0494 0000000C		syscall
+ 611 0498               	### TEST
+ 612 0498               
+ 613 0498               	
+ 614 0498 080000C0		j	step_3
+ 615 049c               
+ 616 049c               	# Step 3 C
+ 617 049c               backtrack:
+ 618 049c               	### TEST
+ 619 049c 34020004		li	$v0, P_STRING
+ 620 04a0 3C040000		la	$a0, bt_text
+     04a4 34840000
+ 621 04a8 0000000C		syscall
+ 622 04ac               	### TEST
+ 623 04ac 3C080000		la	$t0, pose
+     04b0 35080000
+ 624 04b4 8D040000		lw	$a0, 0($t0)	# Load x
+ 625 04b8 8D050004		lw	$a1, 4($t0)	# Load y
+ 626 04bc 81170008		lb	$s7, 8($t0)	# Load current direction to be reapplied later
+ 627 04c0 3C060000		la	$a2, scratch	
+     04c4 34C60000
+ 628 04c8               	# Get new location memory
+ 629 04c8 23BDFFFC		addi	$sp, $sp, -4
+ 630 04cc AFBF0000		sw	$ra, 0($sp)
+ 631 04d0 0C00008D		jal	coor_to_mem
+ 632 04d4 8FBF0000		lw	$ra, 0($sp)
+ 633 04d8 23BD0004		addi	$sp, $sp, 4
+ 634 04dc               	# Get crumbs! v0 = current address
+ 635 04dc 80500000		lb	$s0, 0($v0)	# s0 = current crumb
+ 636 04e0               
+ 637 04e0               	# Prepare arguments to move forward
+ 638 04e0 3C080000		la	$t0, pose
+     04e4 35080000
+ 639 04e8 A1100008		sb	$s0, 8($t0)	# Store new direction to go back	
+ 640 04ec 8D040000		lw	$a0, 0($t0)	# Load x
+ 641 04f0 8D050004		lw	$a1, 4($t0)	# Load y
+ 642 04f4 02003821		move	$a3, $s0	# Pass direction as parameter
+ 643 04f8 3C060000		la	$a2, scratch	
+     04fc 34C60000
+ 644 0500               	# Move forward
+ 645 0500 23BDFFFC		addi	$sp, $sp, -4
+ 646 0504 AFBF0000		sw	$ra, 0($sp)
+ 647 0508 0C0001D1		jal	check_front
+ 648 050c 8FBF0000		lw	$ra, 0($sp)
+ 649 0510 23BD0004		addi	$sp, $sp, 4
+ 650 0514               		# a0 (x) and a1 (y) changed accordingly
+ 651 0514 3C080000		la	$t0, pose
+     0518 35080000
+ 652 051c AD040000		sw	$a0, 0($t0)	# Store new x
+ 653 0520 AD050004		sw	$a1, 4($t0)	# Store new y
+ 654 0524 A1170008		sb	$s7, 8($t0)	# Restore default direction
+ 655 0528               	# Return turn tracker to previous byte location
+ 656 0528 3C090000		la	$t1, next_t
+     052c 35290000
+ 657 0530 8D280000		lw	$t0, 0($t1)	# Load current turn tracker address
+ 658 0534 2108FFFF		addi	$t0, $t0, -1	# Decrease byte location by one.
+ 659 0538 AD280000		sw	$t0, 0($t1)	# Store new address in next_t
+ 660 053c               	
+ 661 053c 080000C0		j	step_3
+ 662 0540               
+ 663 0540               
+ 664 0540               step_4: 
+ 665 0540               	# Step 4: Move into space, drop bread crumb. 
+ 666 0540               	####### TEST ###
+ 667 0540               	#li	$v0, P_INT
+ 668 0540               	#li	$a0, 4
+ 669 0540               	#syscall
+ 670 0540               	######## TESTE ###
+ 671 0540 3C080000		la	$t0, pose
+     0544 35080000
+ 672 0548 8D040000		lw	$a0, 0($t0)
+ 673 054c 8D050004		lw	$a1, 4($t0)
+ 674 0550 81070008		lb	$a3, 8($t0)
+ 675 0554 3C060000		la	$a2, scratch
+     0558 34C60000
+ 676 055c               
+ 677 055c 23BDFFFC		addi	$sp, $sp, -4
+ 678 0560 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 679 0564 0C0001D1		jal	check_front	# v0 = front symbol, but also a0 and a1 are modified
+ 680 0568 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 681 056c 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 682 0570               
+ 683 0570 3C080000		la	$t0, pose
+     0574 35080000
+ 684 0578 AD040000		sw	$a0, 0($t0)	# store x
+ 685 057c AD050004		sw	$a1, 4($t0)	# store y
+ 686 0580               	# Facing remains the same
+ 687 0580               
+ 688 0580               	##### POSSE #####
+ 689 0580               #	li	$v0, P_STRING
+ 690 0580               #	la	$a0, pose_text
+ 691 0580               #	syscall
+ 692 0580               #	li	$v0, P_INT
+ 693 0580               #	la	$s5, pose
+ 694 0580               #	lw	$a0, 0($s5)
+ 695 0580               #	syscall
+ 696 0580               #	li	$v0, P_INT
+ 697 0580               #	la	$s5, pose
+ 698 0580               #	lw	$a0, 4($s5)
+ 699 0580               #	syscall
+ 700 0580               #	li	$v0, P_INT
+ 701 0580               #	la	$s5, pose
+ 702 0580               #	lb	$a0, 8($s5)
+ 703 0580               #	syscall
+ 704 0580               #	li	$v0, P_STRING
+ 705 0580               #	la	$a0, newline
+ 706 0580               #	syscall
+ 707 0580               	##### POSSE #####
+ 708 0580               
+ 709 0580               
+ 710 0580 3C090000		la	$t1, pose
+     0584 35290000
+ 711 0588 81290008		lb	$t1, 8($t1)	# t1 = direction
+ 712 058c               	# Get appropiate crumb: stored in $s0
+ 713 058c 340A0000		li	$t2, UP
+ 714 0590 152A0003		bne	$t1, $t2, nc_up
+ 715 0594               	# If facing up
+ 716 0594 3C100000		la	$s0, crumb_up
+     0598 36100000
+ 717 059c 82100000		lb	$s0, 0($s0)	# loads crumb (comes from DOWN)
+ 718 05a0               nc_up:
+ 719 05a0               
+ 720 05a0 340A0001		li	$t2, RIGHT
+ 721 05a4 152A0003		bne	$t1, $t2, nc_right
+ 722 05a8               	# If facing right
+ 723 05a8 3C100000		la	$s0, crumb_right
+     05ac 36100000
+ 724 05b0 82100000		lb	$s0, 0($s0)	# loads crumb (comes from LEFT)
+ 725 05b4               nc_right:
+ 726 05b4               
+ 727 05b4 340A0002		li	$t2, DOWN
+ 728 05b8 152A0003		bne	$t1, $t2, nc_down
+ 729 05bc               	# If facing down
+ 730 05bc 3C100000		la	$s0, crumb_down
+     05c0 36100000
+ 731 05c4 82100000		lb	$s0, 0($s0)	# loads crumb (comes from UP)
+ 732 05c8               nc_down:
+ 733 05c8               
+ 734 05c8 340A0003		li	$t2, LEFT
+ 735 05cc 152A0003		bne	$t1, $t2, nc_left
+ 736 05d0               	# If facing right
+ 737 05d0 3C100000		la	$s0, crumb_left
+     05d4 36100000
+ 738 05d8 82100000		lb	$s0, 0($s0)	# loads crumb (comes from RIGHT)
+ 739 05dc               nc_left:
+ 740 05dc               
+ 741 05dc               	# Store crumb
+ 742 05dc 3C080000		la	$t0, pose
+     05e0 35080000
+ 743 05e4 8D040000		lw	$a0, 0($t0)	# Load x
+ 744 05e8 8D050004		lw	$a1, 4($t0)	# Load y
+ 745 05ec 3C060000		la	$a2, scratch	
+     05f0 34C60000
+ 746 05f4               	# Get new location memory
+ 747 05f4 23BDFFFC		addi	$sp, $sp, -4
+ 748 05f8 AFBF0000		sw	$ra, 0($sp)
+ 749 05fc 0C00008D		jal	coor_to_mem
+ 750 0600 8FBF0000		lw	$ra, 0($sp)
+ 751 0604 23BD0004		addi	$sp, $sp, 4
+ 752 0608               	# Store crumb in said location
+ 753 0608 A0500000		sb	$s0, 0($v0)
+ 754 060c               
+ 755 060c               	####### TEST ###
+ 756 060c 34020004		li	$v0, P_STRING
+ 757 0610 3C040000		la	$a0, newline
+     0614 34840000
+ 758 0618 0000000C		syscall
+ 759 061c 34020004		li	$v0, P_STRING
+ 760 0620 3C040000		la	$a0, scratch
+     0624 34840000
+ 761 0628 0000000C		syscall
+ 762 062c               	######## TESTE ###
+ 763 062c               
+ 764 062c               
+ 765 062c 080000A2		j	step_2
+ 766 0630               
+ 767 0630               		
+ 768 0630               step_5: 
+ 769 0630               	# Step 5: Exit found! Follow the trail!
+ 770 0630               	####### TEST ###
+ 771 0630               	#li	$v0, P_INT
+ 772 0630               	#li	$a0, 5
+ 773 0630               	#syscall
+ 774 0630               	######## TESTE ###
+ 775 0630               
+ 776 0630 3C080000		la	$t0, pose
+     0634 35080000
+ 777 0638 8D040000		lw	$a0, 0($t0)	# Load x
+ 778 063c 8D050004		lw	$a1, 4($t0)	# Load y
+ 779 0640 3C060000		la	$a2, scratch	
+     0644 34C60000
+ 780 0648               	# Get new location memory
+ 781 0648 23BDFFFC		addi	$sp, $sp, -4
+ 782 064c AFBF0000		sw	$ra, 0($sp)
+ 783 0650 0C00008D		jal	coor_to_mem
+ 784 0654 8FBF0000		lw	$ra, 0($sp)
+ 785 0658 23BD0004		addi	$sp, $sp, 4
+ 786 065c               	# Get crumbs! v0 = current address
+ 787 065c 80500000		lb	$s0, 0($v0)	# s0 = current crumb
+ 788 0660 3C110000		la	$s1, start
+     0664 36310000
+ 789 0668 82310000		lb	$s1, 0($s1)	# s1 = S
+ 790 066c 12110021		beq	$s0, $s1, step_6	# DONE! Go to step 6
+ 791 0670               
+ 792 0670               	# Set trail in this location on main map
+ 793 0670 3C080000		la	$t0, pose
+     0674 35080000
+ 794 0678 8D040000		lw	$a0, 0($t0)	# x
+ 795 067c 8D050004		lw	$a1, 4($t0)	# y
+ 796 0680 3C060000		la	$a2, m_maze
+     0684 34C60000
+ 797 0688 23BDFFFC		addi	$sp, $sp, -4
+ 798 068c AFBF0000		sw	$ra, 0($sp)
+ 799 0690 0C00008D		jal	coor_to_mem
+ 800 0694               	  # v0 = coor location
+ 801 0694 8FBF0000		lw	$ra, 0($sp)
+ 802 0698 23BD0004		addi	$sp, $sp, 4
+ 803 069c 3C090000		la	$t1, trail
+     06a0 35290000
+ 804 06a4 81290000		lb	$t1, 0($t1)	# t1 = '.'
+ 805 06a8 A0490000		sb	$t1, 0($v0)	# Store
+ 806 06ac               
+ 807 06ac               	# Prepare arguments to move forward
+ 808 06ac 3C080000		la	$t0, pose
+     06b0 35080000
+ 809 06b4 A1100008		sb	$s0, 8($t0)	# Store new direction to go back	
+ 810 06b8 8D040000		lw	$a0, 0($t0)	# Load x
+ 811 06bc 8D050004		lw	$a1, 4($t0)	# Load y
+ 812 06c0 02003821		move	$a3, $s0	# Pass direction as parameter
+ 813 06c4 3C060000		la	$a2, scratch	
+     06c8 34C60000
+ 814 06cc               	# Move forward
+ 815 06cc 23BDFFFC		addi	$sp, $sp, -4
+ 816 06d0 AFBF0000		sw	$ra, 0($sp)
+ 817 06d4 0C0001D1		jal	check_front
+ 818 06d8 8FBF0000		lw	$ra, 0($sp)
+ 819 06dc 23BD0004		addi	$sp, $sp, 4
+ 820 06e0               		# a0 (x) and a1 (y) changed accordingly
+ 821 06e0 3C080000		la	$t0, pose
+     06e4 35080000
+ 822 06e8 AD040000		sw	$a0, 0($t0)	# Store new x
+ 823 06ec AD050004		sw	$a1, 4($t0)	# Store new y
+ 824 06f0               	
+ 825 06f0 0800018C		j	step_5
+ 826 06f4               	
+ 827 06f4               step_6:
+ 828 06f4               	# Step 6
+ 829 06f4               	####### TEST ###
+ 830 06f4               	#li	$v0, P_INT
+ 831 06f4               	#li	$a0, 6
+ 832 06f4               	#syscall
+ 833 06f4               	######## TESTE ###
+ 834 06f4               
+ 835 06f4               	#set end back to 'E'
+ 836 06f4 3C080000		la	$t0, end_loc
+     06f8 35080000
+ 837 06fc 8D040000		lw	$a0, 0($t0)	#x
+ 838 0700 8D050004		lw	$a1, 4($t0)	#y
+ 839 0704 3C060000		la	$a2, m_maze
+     0708 34C60000
+ 840 070c 23BDFFFC		addi	$sp, $sp, -4
+ 841 0710 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 842 0714 0C00008D		jal	coor_to_mem	# v0 = end_loc memory
+ 843 0718 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 844 071c 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 845 0720 3C080000		la	$t0, end	
+     0724 35080000
+ 846 0728 81080000		lb	$t0, 0($t0)	# t0 = 'E'
+ 847 072c A0480000		sb	$t0, 0($v0)	
+ 848 0730               	# Print final result
+ 849 0730 34020004		li	$v0, P_STRING
+ 850 0734 3C040000		la	$a0, m_maze
+     0738 34840000
+ 851 073c 0000000C		syscall
+ 852 0740 03E00008		jr	$ra
+ 853 0744               
+ 854 0744               	
+ 855 0744               
+ 856 0744               #
+ 857 0744               # Name:		check_front
+ 858 0744               # Arguments:	a0 = x, a1 = y, a2 = m_maze/scratch address, a3 = facing
+ 859 0744               # Returns:	v0 = item in front ( #, , E, ., etc.)
+ 860 0744               # TESTED = WORKS
+ 861 0744               #
+ 862 0744               check_front:
+ 863 0744 34080000		li	$t0, UP
+ 864 0748 15070001		bne	$t0, $a3, not_up
+ 865 074c               	# if up
+ 866 074c 20A5FFFF		addi	$a1, $a1, -1	# Decrease y
+ 867 0750               not_up:	
+ 868 0750               
+ 869 0750 34080001		li	$t0, RIGHT
+ 870 0754 15070001		bne	$t0, $a3, not_right
+ 871 0758               	# if right
+ 872 0758 20840001		addi	$a0, $a0, 1	# Increase x
+ 873 075c               not_right:
+ 874 075c               
+ 875 075c 34080002		li	$t0, DOWN
+ 876 0760 15070001		bne	$t0, $a3, not_down
+ 877 0764               	# if down
+ 878 0764 20A50001		addi	$a1, $a1, 1	# Increase y
+ 879 0768               not_down:
+ 880 0768               
+ 881 0768 34080003		li	$t0, LEFT
+ 882 076c 15070001		bne	$t0, $a3, not_left
+ 883 0770               	# if left
+ 884 0770 2084FFFF		addi	$a0, $a0, -1	# Decrease x
+ 885 0774               not_left:
+ 886 0774               	# Done modifying x and y
+ 887 0774               
+ 888 0774 23BDFFFC		addi	$sp, $sp, -4
+ 889 0778 AFBF0000	 	sw	$ra, 0($sp)	# save current ra
+ 890 077c 0C00008D		jal	coor_to_mem
+ 891 0780 8FBF0000		lw	$ra, 0($sp)	# load old ra
+ 892 0784 23BD0004		addi	$sp, $sp, 4	# return stack pointer
+ 893 0788 80420000		lb	$v0, 0($v0)	# Set return address to what it represents (#, , ., etc)
+ 894 078c               	
+ 895 078c 03E00008		jr	$ra
+ 896 0790               
+ 897 0790               #
+ 898 0790               # Name:		bug
+ 899 0790               # Error: Invalid character, exit program. 
+ 900 0790               #
+ 901 0790               bug:
+ 902 0790 3C040000		la	$a0, bug_text
+     0794 34840000
+ 903 0798 34020004		li	$v0, P_STRING
+ 904 079c 0000000C		syscall
+ 905 07a0               	
+ 906 07a0               
+ 907 07a0               
+
+
+DOWN           = 00000002   
+LEFT           = 00000003   
+P_CHAR         = 0000000B   
+P_INT          = 00000001   
+P_STRING       = 00000004   
+RIGHT          = 00000001   
+R_CHAR         = 0000000C   
+R_INT          = 00000005   
+R_STRING       = 00000008   
+UP             = 00000000   
+backtrack        0000049C R  text 
+bt_text          0000007D R  data 
+bug              00000790 R  text 
+bug_text         00000056 R  data 
+check_front      00000744 R  text 
+coor_to_mem      00000234 R  text 
+coordinate       00004C90 R  data 
+counter          000000B4 R  data 
+crumb_down       00000094 R  data 
+crumb_left       00000095 R  data 
+crumb_right      00000093 R  data 
+crumb_up         00000092 R  data 
+done_text        0000004F R  data 
+end              00000097 R  data 
+end_loc          00004CA0 R  data 
+height           0000009C R  data 
+m_maze           00001A80 R  data 
+main             00000000 RG text 
+maze_text        00000000 R  data 
+mem_to_coor      00000214 R  text 
+nc_down          000005C8 R  text 
+nc_left          000005DC R  text 
+nc_right         000005B4 R  text 
+nc_up            000005A0 R  text 
+newline          00000098 R  data 
+next             000000A8 R  data 
+next_s           000000AC R  data 
+next_t           000000B0 R  data 
+no_end           000001A8 R  text 
+no_start         00000158 R  text 
+not_down         00000768 R  text 
+not_left         00000774 R  text 
+not_right        0000075C R  text 
+not_up           00000750 R  text 
+pose             00004C80 R  data 
+pose_text        00000074 R  data 
+rchar_1d         000001E8 R  text 
+rchar_l          000000C4 R  text 
+read_maze        0000004C R  text 
+scratch          000000B8 R  data 
+size             000000A4 R  data 
+solution_text    00000042 R  data 
+solve_maze       00000260 R  text 
+space            00000090 R  data 
+spin_n           00004C8C R  data 
+start            00000096 R  data 
+start_loc        00004C98 R  data 
+step_1           00000260 R  text 
+step_2           00000288 R  text 
+step_3           00000300 R  text 
+step_4           00000540 R  text 
+step_5           00000630 R  text 
+step_6           000006F4 R  text 
+tracker          00003448 R  data 
+trail            00000091 R  data 
+turn             00000440 R  text 
+wall             0000008F R  data 
+width            000000A0 R  data 
